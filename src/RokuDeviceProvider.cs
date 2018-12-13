@@ -4,6 +4,7 @@ using RokuDotNet.Client;
 using RokuDotNet.Proxy;
 using RokuDotNet.Proxy.Mqtt;
 using RokuDotNet.Rest;
+using Serilog;
 
 namespace RokuDotNet.Rest.Service
 {
@@ -11,9 +12,12 @@ namespace RokuDotNet.Rest.Service
     {
         private readonly IRokuRpcClient rpcClient;
 
-        public RokuDeviceProvider(string connectionString)
+        public RokuDeviceProvider(string connectionString, ILogger logger)
         {
-            this.rpcClient = new IoTHubRokuRpcClient(connectionString);
+            this.rpcClient =
+                new RpcLoggingHandler(
+                    new IoTHubRokuRpcClient(connectionString),
+                    logger);
         }
 
         #region IRokuDeviceProvider Members

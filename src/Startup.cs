@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 
 namespace RokuDotNet.Rest.Service
 {
@@ -27,8 +28,13 @@ namespace RokuDotNet.Rest.Service
         public void ConfigureServices(IServiceCollection services)
         {
             var connectionString = Environment.GetEnvironmentVariable("ROKU_REST_SERVICE_CONNECTIONSTRING");
+            var logger =
+                new LoggerConfiguration()
+                    .WriteTo
+                    .Console()
+                    .CreateLogger();
 
-            services.AddSingleton<IRokuDeviceProvider>(_ => new RokuDeviceProvider(connectionString));
+            services.AddSingleton<IRokuDeviceProvider>(_ => new RokuDeviceProvider(connectionString, logger));
 
             services
                 .AddMvc()
