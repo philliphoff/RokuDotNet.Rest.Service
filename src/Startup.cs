@@ -9,9 +9,11 @@ using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Serilog;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 namespace RokuDotNet.Rest.Service
 {
@@ -28,16 +30,35 @@ namespace RokuDotNet.Rest.Service
         public void ConfigureServices(IServiceCollection services)
         {
             var connectionString = Environment.GetEnvironmentVariable("ROKU_REST_SERVICE_CONNECTIONSTRING");
-            var logger =
-                new LoggerConfiguration()
-                    .WriteTo
-                    .Console()
-                    .CreateLogger();
+            var deviceKey = Environment.GetEnvironmentVariable("ROKU_REST_SERVICE_DEVICEKEY");
 
-            services.AddSingleton<IRokuDeviceProvider>(_ => new RokuDeviceProvider(connectionString, logger));
+            services.AddSingleton<ILogger>(
+                _ =>
+                    new LoggerConfiguration()
+                        .WriteTo
+                        .Console()
+                        .CreateLogger());
+
+            services.AddSingleton<IRokuDeviceProvider>(serviceProvider => new RokuDeviceProvider(connectionString, serviceProvider.GetService<ILogger>()));
+
+            services.AddAuthentication("Device")
+                .AddScheme<DeviceAuthenticationSchemeOptions, DeviceAuthenticationHandler>(
+                    "Device",
+                    options =>
+                    {
+                        options.DeviceKey = deviceKey; 
+                    });
 
             services
-                .AddMvc()
+                .AddMvc(
+                    options =>
+                    {
+                        var policy = new AuthorizationPolicyBuilder()
+                            .RequireAuthenticatedUser()
+                            .Build();
+                        options.Filters.Add(new AuthorizeFilter(policy));
+                    }
+                )
                 .AddXmlSerializerFormatters()
                 .AddApplicationPart(typeof(RokuController).GetType().Assembly)
                 .AddControllersAsServices()
@@ -56,6 +77,7 @@ namespace RokuDotNet.Rest.Service
                 app.UseHsts();
             }
 
+            app.UseAuthentication();
             app.UseHttpsRedirection();
             app.UseMvc();
         }
